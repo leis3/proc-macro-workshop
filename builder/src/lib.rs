@@ -20,7 +20,8 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
     let mut builder_fields = Vec::new();
     let mut builder_init = Vec::new();
-    
+    let mut builder_setters = Vec::new();
+
     let fields = match &data.fields {
         syn::Fields::Named(named) => &named.named,
         syn::Fields::Unnamed(_) => {
@@ -44,6 +45,11 @@ pub fn derive(input: TokenStream) -> TokenStream {
         builder_init.push(quote! {
             #ident: None
         });
+        builder_setters.push(quote! {
+            fn #ident(&mut self, #ident: #ty) {
+                self.#ident = Some(#ident);
+            }
+        });
     }
 
     let expanded = quote! {
@@ -57,6 +63,10 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
         pub struct #builder_ident {
             #(#builder_fields),*
+        }
+
+        impl #builder_ident {
+            #(#builder_setters)*
         }
     };
 
