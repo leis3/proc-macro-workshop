@@ -50,14 +50,15 @@ pub fn derive(input: TokenStream) -> TokenStream {
 
         impl #builder_ident {
             #(
-                fn #idents(&mut self, #idents: #tys) {
+                fn #idents(&mut self, #idents: #tys) -> &mut Self {
                     self.#idents = Some(#idents);
+                    self
                 }
             )*
-            pub fn build(self) -> Result<#ident, Box<dyn std::error::Error>> {
+            pub fn build(&self) -> Result<#ident, Box<dyn std::error::Error>> {
                 #(
-                    let #idents = match self.#idents {
-                        Some(#idents) => #idents,
+                    let #idents = match &self.#idents {
+                        Some(#idents) => #idents.clone(),
                         None => return Err(format!("Missing \"{}\" field", stringify!(#idents)).into())
                     };
                 )*
