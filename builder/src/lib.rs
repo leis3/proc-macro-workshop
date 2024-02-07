@@ -18,10 +18,6 @@ pub fn derive(input: TokenStream) -> TokenStream {
         }
     };
 
-    let mut builder_fields = Vec::new();
-    let mut builder_init = Vec::new();
-    let mut builder_setters = Vec::new();
-
     let fields = match &data.fields {
         syn::Fields::Named(named) => &named.named,
         syn::Fields::Unnamed(_) => {
@@ -36,38 +32,41 @@ pub fn derive(input: TokenStream) -> TokenStream {
         }
     };
 
-    for field in fields {
-        let ident = field.ident.as_ref().unwrap();
-        let ty = &field.ty;
-        builder_fields.push(quote! {
-            #ident: Option<#ty>
-        });
-        builder_init.push(quote! {
-            #ident: None
-        });
-        builder_setters.push(quote! {
-            fn #ident(&mut self, #ident: #ty) {
-                self.#ident = Some(#ident);
-            }
-        });
-    }
+    let idents = fields.iter().map(|field| field.ident.as_ref().unwrap()).collect::<Vec<_>>();
+    let tys = fields.iter().map(|field| &field.ty).collect::<Vec<_>>();
 
     let expanded = quote! {
         impl #ident {
             pub fn builder() -> #builder_ident {
                 #builder_ident {
-                    #(#builder_init),*
+                    #(#idents: None),*
                 }
             }
         }
 
         pub struct #builder_ident {
-            #(#builder_fields),*
+            #(#idents: Option<#tys>),*
         }
 
         impl #builder_ident {
-            #(#builder_setters)*
+            #(
+                fn #idents(&mut self, #idents: #tys) {
+                    self.#idents = Some(#idents);
+                }
+            )*
+            pub fn build(self) -> Result<#ident, Box<dyn std::error::Error>> {
+                #(
+                    let #idents = match self.#idents {
+                        Some(#idents) => #idents,
+                        None => return Err(format!("Missing \"{}\" field", stringify!(#idents)).into())
+                    };
+                )*
+                Ok(#ident {
+                    #(#idents),*
+                })
+            }
         }
+
     };
 
     expanded.into()
